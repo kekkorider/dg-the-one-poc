@@ -1,7 +1,21 @@
 import { Pane } from 'tweakpane'
 
-import { scale } from '@/assets/materials/SampleTSLMaterial'
+export class Debug {
+	constructor(uniforms) {
+		const pane = new Pane()
 
-const pane = new Pane()
+		pane.addBinding(uniforms.seaAmplitude, 'value', {
+			label: 'Sea amplitude',
+			min: 0.1,
+			max: 1.5,
+			step: 0.01,
+		})
 
-pane.addBinding(scale, 'value', { label: 'Mesh scale', min: 0.25, max: 1.5, step: 0.01 })
+		pane.addBinding(uniforms.seaSpeed, 'value', {
+			label: 'Sea speed',
+			min: 0.25,
+			max: 1.5,
+			step: 0.01,
+		})
+	}
+}
