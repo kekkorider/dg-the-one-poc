@@ -1,10 +1,136 @@
 <template>
-	<canvas
-		class="canvas"
-		ref="canvas"
-		:width="windowWidth"
-		:height="windowHeight"
-	/>
+	<div class="container">
+		<canvas
+			class="canvas"
+			ref="canvas"
+			:width="windowWidth"
+			:height="windowHeight"
+		/>
+
+		<div class="knob" style="pointer-events: none">
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 748 748">
+				<g clip-path="url(#a)">
+					<path
+						stroke="#FFFFC4"
+						stroke-dasharray="3 9"
+						stroke-width="15"
+						d="M374 740c202.136 0 366-163.864 366-366S576.136 8 374 8 8 171.864 8 374s163.864 366 366 366Z"
+						opacity=".5"
+					/>
+				</g>
+
+				<defs>
+					<clipPath id="a">
+						<path fill="#fff" d="M0 0h748v748H0z" />
+					</clipPath>
+				</defs>
+			</svg>
+		</div>
+
+		<div class="knob" ref="knobRef">
+			<svg
+				style="pointer-events: none"
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				viewBox="0 0 748 748"
+			>
+				<g filter="url(#b)">
+					<circle cx="374" cy="94" r="25" fill="#FFFFC4" />
+				</g>
+
+				<defs>
+					<filter
+						id="b"
+						width="550"
+						height="550"
+						x="99"
+						y="-181"
+						color-interpolation-filters="sRGB"
+						filterUnits="userSpaceOnUse"
+					>
+						<feFlood flood-opacity="0" result="BackgroundImageFix" />
+						<feColorMatrix
+							in="SourceAlpha"
+							result="hardAlpha"
+							values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+						/>
+						<feOffset />
+						<feGaussianBlur stdDeviation="7.81" />
+						<feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+						<feBlend
+							in2="BackgroundImageFix"
+							result="effect1_dropShadow_319_20"
+						/>
+						<feColorMatrix
+							in="SourceAlpha"
+							result="hardAlpha"
+							values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+						/>
+						<feOffset />
+						<feGaussianBlur stdDeviation="15.621" />
+						<feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+						<feBlend
+							in2="effect1_dropShadow_319_20"
+							result="effect2_dropShadow_319_20"
+						/>
+						<feColorMatrix
+							in="SourceAlpha"
+							result="hardAlpha"
+							values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+						/>
+						<feOffset />
+						<feGaussianBlur stdDeviation="54.673" />
+						<feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+						<feBlend
+							in2="effect2_dropShadow_319_20"
+							result="effect3_dropShadow_319_20"
+						/>
+						<feColorMatrix
+							in="SourceAlpha"
+							result="hardAlpha"
+							values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+						/>
+						<feOffset />
+						<feGaussianBlur stdDeviation="109.345" />
+						<feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+						<feBlend
+							in2="effect3_dropShadow_319_20"
+							result="effect4_dropShadow_319_20"
+						/>
+						<feColorMatrix
+							in="SourceAlpha"
+							result="hardAlpha"
+							values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+						/>
+						<feOffset />
+						<feGaussianBlur stdDeviation="125" />
+						<feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+						<feBlend
+							in2="effect4_dropShadow_319_20"
+							result="effect5_dropShadow_319_20"
+						/>
+						<feColorMatrix
+							in="SourceAlpha"
+							result="hardAlpha"
+							values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+						/>
+						<feOffset />
+						<feGaussianBlur stdDeviation="125" />
+						<feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+						<feBlend
+							in2="effect5_dropShadow_319_20"
+							result="effect6_dropShadow_319_20"
+						/>
+						<feBlend
+							in="SourceGraphic"
+							in2="effect6_dropShadow_319_20"
+							result="shape"
+						/>
+					</filter>
+				</defs>
+			</svg>
+		</div>
+	</div>
 </template>
 
 <script setup>
@@ -48,11 +174,13 @@ let perfPanel,
 	ambLight
 const textures = new Map()
 
+const knobRef = useTemplateRef('knobRef')
+
 const { width: windowWidth, height: windowHeight } = useWindowSize()
 const { pixelRatio: dpr } = useDevicePixelRatio()
 const params = useUrlSearchParams('history')
 
-const { gsap, Observer } = useGSAP()
+const { gsap, Observer, Draggable } = useGSAP()
 
 const uniforms = Object.freeze({
 	seaAmplitude: uniform(0.1),
@@ -76,6 +204,7 @@ onMounted(async () => {
 	createBg()
 
 	createMouse()
+	createKnob()
 
 	// createControls()
 
@@ -255,11 +384,36 @@ const createMouse = () => {
 		},
 	})
 }
+
+const createKnob = () => {
+	Draggable.create(get(knobRef), {
+		type: 'rotation',
+		inertia: true,
+		snap: value => {
+			return Math.round(value / 120) * 120
+		},
+		throwResistance: 50000,
+	})
+}
 </script>
 
 <style scoped>
+.container {
+	display: grid;
+	place-items: center;
+}
+
 .canvas {
+	grid-column: 1 / -1;
+	grid-row: 1 / -1;
 	height: 100dvh;
 	width: 100dvw;
+}
+
+.knob {
+	aspect-ratio: 1;
+	grid-column: 1 / -1;
+	grid-row: 1 / -1;
+	width: clamp(100px, 20dvw, 300px);
 }
 </style>
