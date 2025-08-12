@@ -152,10 +152,10 @@ import {
 	mix,
 	smoothstep,
 	color,
-	blendOverlay,
 	uv,
 	vec3,
 	remapClamp,
+	texture,
 } from 'three/tsl'
 import { OrbitControls } from 'three/addons/controls/OrbitControls'
 import { easeInExpo } from 'tsl-easings'
@@ -171,8 +171,10 @@ let perfPanel,
 	renderer,
 	controls,
 	seaMesh,
+	bgMesh,
 	ambLight
-const textures = new Map()
+
+const backgroundTextures = new Map()
 
 const knobRef = useTemplateRef('knobRef')
 
@@ -185,6 +187,13 @@ const { gsap, Observer, Draggable } = useGSAP()
 const uniforms = Object.freeze({
 	seaAmplitude: uniform(0.1),
 	seaSpeed: uniform(0.3),
+	knobRotation: uniform(0),
+})
+
+const colors = Object.freeze({
+	theme_1: color(0x0000ff),
+	theme_2: color(0x00ff00),
+	theme_3: color(0xff0000),
 })
 
 //
@@ -254,7 +263,7 @@ watch([windowWidth, windowHeight], value => {
 // Methods
 //
 function updateScene(time = 0) {
-	cameraRotationZ.value *= 0.97
+	cameraRotationZ.value *= 0.985
 
 	camera.lookAt(0, 1, -10)
 	camera.rotation.z = cameraRotationZ.value
@@ -284,14 +293,24 @@ function createRenderer() {
 	})
 
 	renderer.toneMapping = THREE.AgXToneMapping
-	renderer.setClearColor(0x121212, 1)
+	renderer.setClearColor(0x000000, 1)
 	renderer.setSize(get(windowWidth), get(windowHeight))
 }
 
 async function loadTextures() {
-	const result = await textureLoader.load('/bg-upscaled-landscape.png')
-	result.colorSpace = THREE.SRGBColorSpace
-	textures.set('bg', result)
+	const result = await textureLoader.load([
+		'/bg_A.png',
+		'/bg_B.png',
+		'/bg_C.png',
+	])
+
+	result[0].colorSpace = THREE.SRGBColorSpace
+	result[1].colorSpace = THREE.SRGBColorSpace
+	result[2].colorSpace = THREE.SRGBColorSpace
+
+	backgroundTextures.set('bg_A', result[0])
+	backgroundTextures.set('bg_B', result[1])
+	backgroundTextures.set('bg_C', result[2])
 }
 
 function createControls() {
@@ -307,7 +326,6 @@ function createSea() {
 		generateMipmaps: false,
 	})
 	reflection.target.rotateX(-Math.PI / 2)
-	reflection.target.position.y = 1
 	scene.add(reflection.target)
 
 	const geometry = new THREE.PlaneGeometry(20, 10, 150, 200)
@@ -317,11 +335,24 @@ function createSea() {
 
 	material.colorNode = Fn(() => {
 		const base = reflection
-		const light = color(0xffffff)
 
-		const bl = blendOverlay(base, light.mul(10))
+		const valueA = smoothstep(0, 0.33, uniforms.knobRotation)
+		const valueB = smoothstep(0.33, 0.66, uniforms.knobRotation)
+		const valueC = smoothstep(0.66, 1, uniforms.knobRotation)
 
-		const result = mix(base, bl, smoothstep(-0.04, 0.2, positionLocal.y))
+		const colA = colors.theme_1
+		const colB = colors.theme_2
+		const colC = colors.theme_3
+
+		const light = mix(colA, colB, valueA)
+		light.assign(mix(light, colC, valueB))
+		light.assign(mix(light, colA, valueC))
+
+		const result = mix(
+			base,
+			light.mul(20),
+			smoothstep(-0.04, 0.2, positionLocal.y)
+		)
 
 		return result
 	})()
@@ -346,7 +377,7 @@ function createSea() {
 }
 
 const createLight = () => {
-	ambLight = new THREE.AmbientLight(0xffffff, 1.5)
+	ambLight = new THREE.AmbientLight(0xffffff, 0.13)
 	scene.add(ambLight)
 }
 
@@ -355,26 +386,41 @@ function createBg() {
 	geometry.scale(5, 5, 1)
 
 	const material = new THREE.MeshBasicNodeMaterial({
-		map: textures.get('bg'),
+		dithering: true,
 	})
 
-	const mesh = new THREE.Mesh(geometry, material)
-	mesh.position.y = 2
-	mesh.position.z = -5
+	material.colorNode = Fn(() => {
+		const valueA = smoothstep(0, 0.33, uniforms.knobRotation)
+		const valueB = smoothstep(0.33, 0.66, uniforms.knobRotation)
+		const valueC = smoothstep(0.66, 1, uniforms.knobRotation)
 
-	scene.add(mesh)
+		const colA = texture(backgroundTextures.get('bg_A'), uv())
+		const colB = texture(backgroundTextures.get('bg_B'), uv())
+		const colC = texture(backgroundTextures.get('bg_C'), uv())
+
+		const result = mix(colA, colB, valueA)
+		result.assign(mix(result, colC, valueB))
+		result.assign(mix(result, colA, valueC))
+
+		return result
+	})()
+
+	bgMesh = new THREE.Mesh(geometry, material)
+	bgMesh.position.y = 2
+	bgMesh.position.z = -5
+
+	scene.add(bgMesh)
 }
 
 const createMouse = () => {
 	Observer.create({
 		type: 'pointer',
 		onMove: e => {
-			const { x, y } = e
+			const { x, velocityX } = e
 
 			const xNDC = (x / get(windowWidth)) * 2 - 1
-			const yNDC = -(y / get(windowHeight)) * 2 + 1
 
-			cameraRotationZ.value -= e.velocityX * 0.0000003
+			cameraRotationZ.value -= velocityX * 0.0000003
 
 			gsap.to(camera.position, {
 				x: () => xNDC * 1.35,
@@ -389,11 +435,29 @@ const createKnob = () => {
 	Draggable.create(get(knobRef), {
 		type: 'rotation',
 		inertia: true,
+		onDrag: () => {
+			const rotation = calculateRotation()
+			uniforms.knobRotation.value = rotation
+		},
+		onThrowUpdate: () => {
+			const rotation = calculateRotation()
+			uniforms.knobRotation.value = rotation
+		},
 		snap: value => {
 			return Math.round(value / 120) * 120
 		},
 		throwResistance: 50000,
 	})
+
+	function calculateRotation() {
+		let rotation = gsap.getProperty(get(knobRef), 'rotation') % 360
+
+		if (Math.sign(rotation) === -1) {
+			rotation = 360 + rotation
+		}
+
+		return rotation / 360
+	}
 }
 </script>
 
