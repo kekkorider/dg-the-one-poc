@@ -1,7 +1,7 @@
 import { Pane } from 'tweakpane'
 
 export class Debug {
-	constructor(uniforms) {
+	constructor(uniforms, ambLight) {
 		const pane = new Pane()
 
 		pane.addBinding(uniforms.seaAmplitude, 'value', {
@@ -15,6 +15,13 @@ export class Debug {
 			label: 'Sea speed',
 			min: 0.25,
 			max: 1.5,
+			step: 0.01,
+		})
+
+		pane.addBinding(ambLight, 'intensity', {
+			label: 'Env light intensity',
+			min: 0,
+			max: 10,
 			step: 0.01,
 		})
 	}

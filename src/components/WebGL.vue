@@ -17,13 +17,12 @@ import {
 } from '@vueuse/core'
 import * as THREE from 'three/webgpu'
 import {
-	uv,
 	Fn,
-	vec4,
 	time,
 	positionLocal,
 	mx_noise_vec3,
 	uniform,
+	reflector,
 } from 'three/tsl'
 import { OrbitControls } from 'three/addons/controls/OrbitControls'
 
@@ -31,7 +30,7 @@ import { useGSAP } from '@/composables/useGSAP'
 import { textureLoader } from '@/assets/loaders'
 
 const canvasRef = useTemplateRef('canvas')
-let perfPanel, scene, camera, renderer, controls, seaMesh
+let perfPanel, scene, camera, renderer, controls, seaMesh, ambLight
 const textures = new Map()
 
 const { width: windowWidth, height: windowHeight } = useWindowSize()
@@ -57,6 +56,7 @@ onMounted(async () => {
 
 	await loadTextures()
 
+	createLight()
 	createSea()
 	createBg()
 
@@ -75,7 +75,7 @@ onMounted(async () => {
 
 	if (Object.hasOwn(params, 'debug')) {
 		const { Debug } = await import('@/assets/Debug')
-		new Debug(uniforms)
+		new Debug(uniforms, ambLight)
 
 		if (!renderer.isWebGPURenderer) {
 			const { ThreePerf } = await import('three-perf')
@@ -134,12 +134,14 @@ function createRenderer() {
 		antialias: true,
 	})
 
+	renderer.toneMapping = THREE.AgXToneMapping
 	renderer.setClearColor(0x121212, 1)
 	renderer.setSize(get(windowWidth), get(windowHeight))
 }
 
 async function loadTextures() {
 	const result = await textureLoader.load('/bg-upscaled-landscape.png')
+	result.colorSpace = THREE.SRGBColorSpace
 	textures.set('bg', result)
 }
 
@@ -149,16 +151,23 @@ function createControls() {
 }
 
 function createSea() {
+	// Reflection
+	const reflection = reflector({
+		resolution: 0.3,
+		bounces: false,
+		generateMipmaps: false,
+	})
+	reflection.target.rotateX(-Math.PI / 2)
+	reflection.target.position.y = 1
+	scene.add(reflection.target)
+
 	const geometry = new THREE.PlaneGeometry(20, 10, 100, 100)
 	geometry.rotateX(-Math.PI / 2)
 
-	const material = new THREE.MeshBasicNodeMaterial({
-		color: 0x0000ff,
-		wireframe: true,
-	})
+	const material = new THREE.MeshStandardNodeMaterial()
 
 	material.colorNode = Fn(() => {
-		return vec4(uv(), 0.5, 1)
+		return reflection
 	})()
 
 	material.positionNode = Fn(() => {
@@ -172,6 +181,11 @@ function createSea() {
 	seaMesh = new THREE.Mesh(geometry, material)
 
 	scene.add(seaMesh)
+}
+
+const createLight = () => {
+	ambLight = new THREE.AmbientLight(0xffffff, 1)
+	scene.add(ambLight)
 }
 
 function createBg() {
