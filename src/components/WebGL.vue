@@ -28,8 +28,11 @@ import {
 	color,
 	blendOverlay,
 	uv,
+	vec3,
+	remapClamp,
 } from 'three/tsl'
 import { OrbitControls } from 'three/addons/controls/OrbitControls'
+import { easeInExpo } from 'tsl-easings'
 
 import { useGSAP } from '@/composables/useGSAP'
 import { textureLoader } from '@/assets/loaders'
@@ -178,7 +181,7 @@ function createSea() {
 	reflection.target.position.y = 1
 	scene.add(reflection.target)
 
-	const geometry = new THREE.PlaneGeometry(20, 10, 100, 100)
+	const geometry = new THREE.PlaneGeometry(20, 10, 150, 200)
 	geometry.rotateX(-Math.PI / 2)
 
 	const material = new THREE.MeshStandardNodeMaterial()
@@ -196,13 +199,16 @@ function createSea() {
 
 	material.positionNode = Fn(() => {
 		const noiseIntensity = smoothstep(0.995, 0.75, uv().y)
+		const curveIntensity = remapClamp(uv().y, 0.98, 1, 0, 1)
 
 		const noise = mx_noise_vec3(
 			positionLocal.add(time.mul(uniforms.seaSpeed)),
 			uniforms.seaAmplitude
 		).mul(noiseIntensity)
 
-		return positionLocal.add(noise)
+		const curve = easeInExpo(curveIntensity)
+
+		return positionLocal.add(noise).add(vec3(0, curve, 0).mul(0.1))
 	})()
 
 	seaMesh = new THREE.Mesh(geometry, material)
