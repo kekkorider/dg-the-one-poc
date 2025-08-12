@@ -35,14 +35,21 @@ import { useGSAP } from '@/composables/useGSAP'
 import { textureLoader } from '@/assets/loaders'
 
 const canvasRef = useTemplateRef('canvas')
-let perfPanel, scene, camera, renderer, controls, seaMesh, ambLight
+let perfPanel,
+	scene,
+	camera,
+	cameraRotationZ = { value: 0 },
+	renderer,
+	controls,
+	seaMesh,
+	ambLight
 const textures = new Map()
 
 const { width: windowWidth, height: windowHeight } = useWindowSize()
 const { pixelRatio: dpr } = useDevicePixelRatio()
 const params = useUrlSearchParams('history')
 
-const { gsap } = useGSAP()
+const { gsap, Observer } = useGSAP()
 
 const uniforms = Object.freeze({
 	seaAmplitude: uniform(0.1),
@@ -64,6 +71,8 @@ onMounted(async () => {
 	createLight()
 	createSea()
 	createBg()
+
+	createMouse()
 
 	// createControls()
 
@@ -113,7 +122,10 @@ watch([windowWidth, windowHeight], value => {
 // Methods
 //
 function updateScene(time = 0) {
+	cameraRotationZ.value *= 0.97
+
 	camera.lookAt(0, 1, -10)
+	camera.rotation.z = cameraRotationZ.value
 	controls?.update()
 }
 
@@ -216,6 +228,26 @@ function createBg() {
 	mesh.position.z = -5
 
 	scene.add(mesh)
+}
+
+const createMouse = () => {
+	Observer.create({
+		type: 'pointer',
+		onMove: e => {
+			const { x, y } = e
+
+			const xNDC = (x / get(windowWidth)) * 2 - 1
+			const yNDC = -(y / get(windowHeight)) * 2 + 1
+
+			cameraRotationZ.value -= e.velocityX * 0.0000003
+
+			gsap.to(camera.position, {
+				x: () => xNDC * 1.35,
+				overwrite: true,
+				duration: 1,
+			})
+		},
+	})
 }
 </script>
 
