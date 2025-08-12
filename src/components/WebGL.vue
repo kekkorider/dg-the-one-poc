@@ -23,6 +23,11 @@ import {
 	mx_noise_vec3,
 	uniform,
 	reflector,
+	mix,
+	smoothstep,
+	color,
+	blendOverlay,
+	uv,
 } from 'three/tsl'
 import { OrbitControls } from 'three/addons/controls/OrbitControls'
 
@@ -40,8 +45,8 @@ const params = useUrlSearchParams('history')
 const { gsap } = useGSAP()
 
 const uniforms = Object.freeze({
-	seaAmplitude: uniform(0.16),
-	seaSpeed: uniform(0.77),
+	seaAmplitude: uniform(0.1),
+	seaSpeed: uniform(0.3),
 })
 
 //
@@ -153,7 +158,7 @@ function createControls() {
 function createSea() {
 	// Reflection
 	const reflection = reflector({
-		resolution: 0.3,
+		resolution: 0.5,
 		bounces: false,
 		generateMipmaps: false,
 	})
@@ -167,14 +172,24 @@ function createSea() {
 	const material = new THREE.MeshStandardNodeMaterial()
 
 	material.colorNode = Fn(() => {
-		return reflection
+		const base = reflection
+		const light = color(0xffffff)
+
+		const bl = blendOverlay(base, light.mul(10))
+
+		const result = mix(base, bl, smoothstep(-0.04, 0.2, positionLocal.y))
+
+		return result
 	})()
 
 	material.positionNode = Fn(() => {
+		const noiseIntensity = smoothstep(0.995, 0.75, uv().y)
+
 		const noise = mx_noise_vec3(
 			positionLocal.add(time.mul(uniforms.seaSpeed)),
 			uniforms.seaAmplitude
-		)
+		).mul(noiseIntensity)
+
 		return positionLocal.add(noise)
 	})()
 
@@ -184,7 +199,7 @@ function createSea() {
 }
 
 const createLight = () => {
-	ambLight = new THREE.AmbientLight(0xffffff, 1)
+	ambLight = new THREE.AmbientLight(0xffffff, 1.5)
 	scene.add(ambLight)
 }
 

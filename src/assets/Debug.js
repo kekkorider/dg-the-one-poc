@@ -14,7 +14,7 @@ export class Debug {
 		pane.addBinding(uniforms.seaSpeed, 'value', {
 			label: 'Sea speed',
 			min: 0.25,
-			max: 1.5,
+			max: 1,
 			step: 0.01,
 		})
 
